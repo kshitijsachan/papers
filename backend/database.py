@@ -1,10 +1,19 @@
 """Database setup and session management."""
 
+import os
 from sqlmodel import Session, SQLModel, create_engine
 
-DATABASE_URL = "sqlite:///./papers.db"
+# Use PostgreSQL in production, SQLite locally
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./papers.db")
 
-engine = create_engine(DATABASE_URL, echo=False)
+# PostgreSQL URLs from Railway start with postgres://, but SQLAlchemy needs postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# SQLite needs check_same_thread=False
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+
+engine = create_engine(DATABASE_URL, echo=False, connect_args=connect_args)
 
 
 def create_db_and_tables() -> None:

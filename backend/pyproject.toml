@@ -12,6 +12,8 @@ dependencies = [
     "pymupdf>=1.24.0",
     "marker-pdf>=1.6.2",
     "transformers<4.48",
+    "psycopg2-binary>=2.9.11",
+    "boto3>=1.42.4",
 ]
 
 [tool.uv]

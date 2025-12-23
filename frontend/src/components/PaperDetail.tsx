@@ -28,8 +28,9 @@ function FigureLightbox({ figure, figures, currentIndex, onClose, onNavigate }: 
   }, [onClose, onNavigate, currentIndex, figures.length]);
 
   // Resolve image URL (backend serves from /figures/...)
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
   const imageUrl = figure.image_url.startsWith('/')
-    ? `http://localhost:8000${figure.image_url}`
+    ? `${apiBase}${figure.image_url}`
     : figure.image_url;
 
   const hasPrev = currentIndex > 0;
@@ -219,8 +220,9 @@ export function PaperDetail({ paper, onClose }: PaperDetailProps) {
                 ) : figures && figures.length > 0 ? (
                   <div className="grid grid-cols-2 gap-3">
                     {figures.map((figure, idx) => {
+                      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
                       const imageUrl = figure.image_url.startsWith('/')
-                        ? `http://localhost:8000${figure.image_url}`
+                        ? `${apiBase}${figure.image_url}`
                         : figure.image_url;
                       return (
                         <button
