@@ -5,6 +5,7 @@ import type { HeaderHandle } from './components/Header';
 import { PaperGrid } from './components/PaperGrid';
 import type { PaperGridHandle } from './components/PaperGrid';
 import { PaperDetail } from './components/PaperDetail';
+import { SyncIndicator } from './components/SyncIndicator';
 import { useUpdatePaper } from './hooks/usePapers';
 import type { Paper } from './types/paper';
 
@@ -110,7 +111,8 @@ function AppContent() {
         <PaperDetail key={selectedPaper.id} paper={selectedPaper} onClose={() => setSelectedPaper(null)} />
       )}
 
-      <div className="fixed bottom-4 right-4">
+      <div className="fixed bottom-4 right-4 flex items-center gap-3">
+        <SyncIndicator />
         <button
           onClick={() => setShowShortcuts((prev) => !prev)}
           className="px-3 py-1.5 text-xs font-medium text-gray-500 bg-white/80 border border-gray-200 rounded-lg hover:bg-white hover:text-gray-700 transition-all shadow-sm backdrop-blur-sm"

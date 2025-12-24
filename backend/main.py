@@ -1,5 +1,6 @@
 """FastAPI application for paper management."""
 
+import hashlib
 import json
 import re
 import shutil
@@ -18,6 +19,8 @@ from database import DATA_DIR, create_db_and_tables, get_session
 from models import NotesUpdate, Paper, PaperCreate, PaperRead, PaperUpdate
 
 ARXIV_API = "https://export.arxiv.org/api/query"
+DB_PATH = DATA_DIR / "papers.db"
+HASH_FILE = DATA_DIR / ".last_backup_hash"
 
 
 @asynccontextmanager
@@ -36,6 +39,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/sync-status")
+def get_sync_status() -> dict:
+    """Check if database is synced with backup."""
+    if not DB_PATH.exists():
+        return {"synced": True, "message": "No database yet"}
+
+    current_hash = hashlib.md5(DB_PATH.read_bytes()).hexdigest()
+    last_hash = HASH_FILE.read_text().strip() if HASH_FILE.exists() else None
+
+    return {
+        "synced": current_hash == last_hash,
+        "last_backup": last_hash is not None,
+    }
 
 
 @app.get("/papers", response_model=list[PaperRead])
