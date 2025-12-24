@@ -1,13 +1,20 @@
 """FastAPI application for paper management."""
 
+import json
+import re
+import shutil
+import subprocess
+import xml.etree.ElementTree as ET
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from sqlmodel import Session, select
 
-from database import create_db_and_tables, get_session
+from database import DATA_DIR, create_db_and_tables, get_session
 from models import NotesUpdate, Paper, PaperCreate, PaperRead, PaperUpdate
 
 ARXIV_API = "https://export.arxiv.org/api/query"
@@ -164,7 +171,6 @@ def delete_paper(paper_id: int, session: Session = Depends(get_session)) -> None
 
 def parse_arxiv_response(xml_text: str) -> list[dict]:
     """Parse arXiv API XML response into paper dicts."""
-    import xml.etree.ElementTree as ET
 
     ns = {
         "atom": "http://www.w3.org/2005/Atom",
@@ -318,16 +324,9 @@ def extract_arxiv_id(arxiv_url: str | None) -> str | None:
     """
     if not arxiv_url:
         return None
-    import re
-
     match = re.search(r"(\d{4}\.\d{4,5})(v\d+)?", arxiv_url)
     return match.group(1) if match else None
 
-
-import json
-from pathlib import Path
-
-from database import DATA_DIR
 
 # Cache directory for extracted figures
 FIGURES_CACHE_DIR = DATA_DIR / "figures"
@@ -351,9 +350,6 @@ def extract_figures_from_pdf(pdf_path: Path, cache_dir: Path) -> list[dict]:
     list[dict]
         List of figures with image URLs and captions.
     """
-    import subprocess
-    import re
-
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     # Run marker_single CLI
@@ -403,7 +399,6 @@ def extract_figures_from_pdf(pdf_path: Path, cache_dir: Path) -> list[dict]:
         # Move/copy to cache_dir root for simpler serving
         dest = cache_dir / img_file.name
         if img_file != dest:
-            import shutil
             shutil.copy(img_file, dest)
 
         # Extract page number from filename like _page_1_Figure_0.jpeg
@@ -493,9 +488,6 @@ async def get_paper_figures(
 
 
 # Serve cached figure images
-from fastapi.responses import FileResponse
-
-
 @app.get("/figures/{arxiv_id}/{filename}")
 async def get_figure_image(arxiv_id: str, filename: str):
     """Serve a cached figure image.

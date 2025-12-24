@@ -30,11 +30,6 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
   const updatePaper = useUpdatePaper();
   const deletePaper = useDeletePaper();
 
-  useImperativeHandle(ref, () => ({
-    focusFilter: () => filterInputRef.current?.focus(),
-    getFilteredPapers: () => filteredAndSortedPapers,
-  }));
-
   const filteredAndSortedPapers = useMemo(() => {
     if (!papers) return [];
 
@@ -72,6 +67,11 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
 
     return result;
   }, [papers, filterQuery, sortBy, filterStatus]);
+
+  useImperativeHandle(ref, () => ({
+    focusFilter: () => filterInputRef.current?.focus(),
+    getFilteredPapers: () => filteredAndSortedPapers,
+  }));
 
   // Selection helpers
   const toggleSelect = (id: number) => {

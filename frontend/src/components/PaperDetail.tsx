@@ -104,10 +104,6 @@ export function PaperDetail({ paper, onClose }: PaperDetailProps) {
   const deletePaper = useDeletePaper();
   const { data: figures, isLoading: figuresLoading } = useFigures(paper.id);
 
-  useEffect(() => {
-    setNotes(paper.notes || '');
-  }, [paper.notes]);
-
   function handleToggleRead() {
     if (paper.id) {
       updatePaper.mutate({ id: paper.id, updates: { read_status: !paper.read_status } });

@@ -107,7 +107,7 @@ function AppContent() {
       </main>
 
       {selectedPaper && (
-        <PaperDetail paper={selectedPaper} onClose={() => setSelectedPaper(null)} />
+        <PaperDetail key={selectedPaper.id} paper={selectedPaper} onClose={() => setSelectedPaper(null)} />
       )}
 
       <div className="fixed bottom-4 right-4">

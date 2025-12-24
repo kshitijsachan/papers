@@ -1,6 +1,7 @@
 """Database setup and session management."""
 
 from pathlib import Path
+
 from sqlmodel import Session, SQLModel, create_engine
 
 DATA_DIR = Path.home() / ".papers"
