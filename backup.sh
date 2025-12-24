@@ -1,21 +1,35 @@
 #!/bin/bash
-# Backup papers database to iCloud (or any folder you prefer)
+# Backup papers database to GitHub Gist
 
-BACKUP_DIR="$HOME/Library/Mobile Documents/com~apple~CloudDocs/papers-backup"
 DB_PATH="$HOME/.papers/papers.db"
-FIGURES_PATH="$HOME/.papers/figures"
 
-mkdir -p "$BACKUP_DIR"
+if [ ! -f "$DB_PATH" ]; then
+    echo "No database found at $DB_PATH"
+    exit 1
+fi
 
-# Backup database with timestamp
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-cp "$DB_PATH" "$BACKUP_DIR/papers_$TIMESTAMP.db" 2>/dev/null && \
-  echo "Database backed up to $BACKUP_DIR/papers_$TIMESTAMP.db"
+# Create a base64-encoded backup (gists are text-based)
+BACKUP_FILE="/tmp/papers_backup.sql"
+sqlite3 "$DB_PATH" ".dump" > "$BACKUP_FILE"
 
-# Keep only last 10 backups
-ls -t "$BACKUP_DIR"/papers_*.db 2>/dev/null | tail -n +11 | xargs rm -f 2>/dev/null
+TIMESTAMP=$(date +%Y-%m-%d_%H:%M:%S)
+echo "-- Backup: $TIMESTAMP" | cat - "$BACKUP_FILE" > /tmp/papers_backup_final.sql
+mv /tmp/papers_backup_final.sql "$BACKUP_FILE"
 
-# Optionally sync figures (can be large)
-# rsync -av "$FIGURES_PATH/" "$BACKUP_DIR/figures/"
+# Check if gist exists, create or update
+GIST_ID_FILE="$HOME/.papers/.gist_id"
 
-echo "Backup complete"
+if [ -f "$GIST_ID_FILE" ]; then
+    GIST_ID=$(cat "$GIST_ID_FILE")
+    gh gist edit "$GIST_ID" "$BACKUP_FILE" -f "papers_backup.sql" && \
+        echo "Updated backup gist: https://gist.github.com/$GIST_ID"
+else
+    # Create new private gist
+    GIST_URL=$(gh gist create "$BACKUP_FILE" -d "Papers database backup" -f "papers_backup.sql" 2>&1)
+    GIST_ID=$(echo "$GIST_URL" | grep -oE '[a-f0-9]{32}')
+    echo "$GIST_ID" > "$GIST_ID_FILE"
+    echo "Created backup gist: $GIST_URL"
+fi
+
+rm "$BACKUP_FILE"
+echo "Backup complete: $TIMESTAMP"
