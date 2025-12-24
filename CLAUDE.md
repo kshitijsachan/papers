@@ -32,7 +32,7 @@ papers --dev
 - Recommendations via Semantic Scholar + Claude scoring
 - Code URLs extracted from paper abstracts (not GitHub search)
 - Figures extracted from PDFs via Marker
-- Auto-backup to iCloud on changes
+- Auto-backup to GitHub Gist on changes (5-second debounce)
 
 ## Code Style
 
