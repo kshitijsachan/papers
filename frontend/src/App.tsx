@@ -27,7 +27,9 @@ function AppContent() {
       const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
 
       if (e.key === 'Escape') {
-        if (selectedPaper) {
+        if (showShortcuts) {
+          setShowShortcuts(false);
+        } else if (selectedPaper) {
           setSelectedPaper(null);
         } else if (isInputFocused) {
           (target as HTMLInputElement).blur();
@@ -87,7 +89,7 @@ function AppContent() {
           break;
       }
     },
-    [selectedPaper, selectedIndex, updatePaper]
+    [selectedPaper, selectedIndex, updatePaper, showShortcuts]
   );
 
   useEffect(() => {
