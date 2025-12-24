@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useUpdatePaper, useUpdateNotes, useDeletePaper, useFigures } from '../hooks/usePapers';
 import { LatexText } from './LatexText';
+import { MarkdownLatex } from './MarkdownLatex';
 import type { Paper, Figure } from '../types/paper';
 
 interface PaperDetailProps {
@@ -102,6 +103,7 @@ export function PaperDetail({ paper, onClose, currentIndex, totalPapers, onNavig
   const hasNext = currentIndex !== undefined && totalPapers !== undefined && currentIndex < totalPapers - 1;
   const [notes, setNotes] = useState(paper.notes || '');
   const [selectedFigureIndex, setSelectedFigureIndex] = useState<number | null>(null);
+  const [notesMode, setNotesMode] = useState<'edit' | 'preview'>('preview');
   const hasChanges = notes !== (paper.notes || '');
 
   const updatePaper = useUpdatePaper();
@@ -285,13 +287,45 @@ export function PaperDetail({ paper, onClose, currentIndex, totalPapers, onNavig
 
               {/* Notes */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-800 mb-2">Notes</h3>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add your notes here..."
-                  className="w-full h-32 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 resize-y transition-all"
-                />
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-gray-800">Notes</h3>
+                  <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+                    <button
+                      onClick={() => setNotesMode('edit')}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                        notesMode === 'edit' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => setNotesMode('preview')}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                        notesMode === 'preview' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Preview
+                    </button>
+                  </div>
+                </div>
+
+                {notesMode === 'edit' ? (
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add your notes here... (supports Markdown and LaTeX with $ and $$)"
+                    className="w-full h-32 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 resize-y transition-all font-mono"
+                  />
+                ) : (
+                  <div className="w-full min-h-[8rem] px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50/50">
+                    {notes ? (
+                      <MarkdownLatex className="text-gray-700 leading-relaxed">{notes}</MarkdownLatex>
+                    ) : (
+                      <p className="text-gray-400 italic">No notes yet. Click Edit to add notes.</p>
+                    )}
+                  </div>
+                )}
+
                 {hasChanges && (
                   <div className="flex items-center justify-end gap-3 mt-2">
                     <button
