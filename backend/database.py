@@ -1,10 +1,15 @@
 """Database setup and session management."""
 
 import os
+from pathlib import Path
 from sqlmodel import Session, SQLModel, create_engine
 
+# Store data in ~/.papers/ by default
+DATA_DIR = Path(os.environ.get("PAPERS_DATA_DIR", str(Path.home() / ".papers")))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
 # Use PostgreSQL in production, SQLite locally
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./papers.db")
+DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DATA_DIR}/papers.db")
 
 # PostgreSQL URLs from Railway start with postgres://, but SQLAlchemy needs postgresql://
 if DATABASE_URL.startswith("postgres://"):

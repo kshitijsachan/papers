@@ -327,8 +327,10 @@ def extract_arxiv_id(arxiv_url: str | None) -> str | None:
 import json
 from pathlib import Path
 
+from database import DATA_DIR
+
 # Cache directory for extracted figures
-FIGURES_CACHE_DIR = Path.home() / ".papers" / "figures"
+FIGURES_CACHE_DIR = DATA_DIR / "figures"
 FIGURES_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
