@@ -1,0 +1,21 @@
+#!/bin/bash
+# Open the papers app, starting services if needed
+
+PAPERS_DIR="$HOME/code/misc/papers"
+
+# Check if backend is running
+if ! curl -s http://localhost:8000/sync-status > /dev/null 2>&1; then
+    echo "Starting backend..."
+    (cd "$PAPERS_DIR/backend" && uv run uvicorn main:app --port 8000 > /tmp/papers-backend.log 2>&1 &)
+    sleep 2
+fi
+
+# Check if frontend is running
+if ! curl -s http://localhost:5173 > /dev/null 2>&1; then
+    echo "Starting frontend..."
+    (cd "$PAPERS_DIR/frontend" && npm run dev > /tmp/papers-frontend.log 2>&1 &)
+    sleep 2
+fi
+
+# Open browser
+open http://localhost:5173

@@ -1,18 +1,16 @@
 #!/bin/bash
-# Start the papers app (backend + frontend)
+# Start papers app in DEV MODE (with hot reload)
+# Use this for development. Use `papers` command for normal usage.
 
 cd "$(dirname "$0")"
 
-# Stop any LaunchAgents that might conflict
-launchctl unload ~/Library/LaunchAgents/com.papers.backend.plist 2>/dev/null
-launchctl unload ~/Library/LaunchAgents/com.papers.frontend.plist 2>/dev/null
-
 # Kill any existing processes on our ports
+echo "Stopping existing services..."
 lsof -ti:8000 | xargs kill -9 2>/dev/null
 lsof -ti:5173 | xargs kill -9 2>/dev/null
 sleep 1
 
-# Start backend
+# Start backend with --reload for hot reloading
 cd backend
 uv run uvicorn main:app --reload --port 8000 &
 BACKEND_PID=$!
@@ -26,9 +24,9 @@ FRONTEND_PID=$!
 sleep 2
 
 echo ""
-echo "Papers app running:"
+echo "Papers app running in DEV MODE:"
 echo "  Frontend: http://localhost:5173"
-echo "  Backend:  http://localhost:8000"
+echo "  Backend:  http://localhost:8000 (with hot reload)"
 echo ""
 echo "Press Ctrl+C to stop"
 

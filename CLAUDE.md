@@ -15,18 +15,16 @@ A paper management app (Paperpile alternative) for tracking ML research papers.
 
 ## Development
 
-**Start the app:**
+**For dev work (with hot reload):**
 ```bash
 cd /Users/kshitij/code/misc/papers && ./start.sh
 ```
+This kills existing processes and starts with `--reload` for hot reloading.
 
-This script handles everything - unloads LaunchAgents, kills existing processes, starts both servers.
-
-**Do NOT** manually run `uv run uvicorn` or `npm run dev` in the background - there are LaunchAgents with `KeepAlive: true` that will conflict and cause port binding issues.
+**For normal usage:** User types `papers` in terminal - starts services if needed and opens browser.
 
 **If the site goes down:**
 ```bash
-# Kill everything and restart cleanly
 lsof -ti:8000 | xargs kill -9; lsof -ti:5173 | xargs kill -9
 ./start.sh
 ```
