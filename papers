@@ -1,21 +1,45 @@
 #!/bin/bash
-# Open the papers app, starting services if needed
+# papers - Open the papers app
+# Usage: papers        (starts if needed, opens browser)
+#        papers --dev  (kills existing, hot reload, foreground)
 
 PAPERS_DIR="$HOME/code/misc/papers"
 
-# Check if backend is running
-if ! curl -s http://localhost:8000/sync-status > /dev/null 2>&1; then
-    echo "Starting backend..."
-    (cd "$PAPERS_DIR/backend" && uv run uvicorn main:app --port 8000 > /tmp/papers-backend.log 2>&1 &)
-    sleep 2
-fi
+if [[ "$1" == "--dev" || "$1" == "-d" ]]; then
+    # Dev mode: kill existing, start with hot reload, stay in foreground
+    echo "Starting in dev mode..."
+    lsof -ti:8000 | xargs kill -9 2>/dev/null
+    lsof -ti:5173 | xargs kill -9 2>/dev/null
+    sleep 1
 
-# Check if frontend is running
-if ! curl -s http://localhost:5173 > /dev/null 2>&1; then
-    echo "Starting frontend..."
-    (cd "$PAPERS_DIR/frontend" && npm run dev > /tmp/papers-frontend.log 2>&1 &)
-    sleep 2
-fi
+    (cd "$PAPERS_DIR/backend" && uv run uvicorn main:app --reload --port 8000) &
+    BACKEND_PID=$!
+    (cd "$PAPERS_DIR/frontend" && npm run dev) &
+    FRONTEND_PID=$!
 
-# Open browser
-open http://localhost:5173
+    sleep 2
+    echo ""
+    echo "Papers running in DEV MODE (hot reload enabled)"
+    echo "  Frontend: http://localhost:5173"
+    echo "  Backend:  http://localhost:8000"
+    echo ""
+    echo "Press Ctrl+C to stop"
+
+    trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit" INT
+    wait
+else
+    # Normal mode: start if needed, open browser
+    if ! curl -s http://localhost:8000/sync-status > /dev/null 2>&1; then
+        echo "Starting backend..."
+        (cd "$PAPERS_DIR/backend" && uv run uvicorn main:app --port 8000 > /tmp/papers-backend.log 2>&1 &)
+        sleep 2
+    fi
+
+    if ! curl -s http://localhost:5173 > /dev/null 2>&1; then
+        echo "Starting frontend..."
+        (cd "$PAPERS_DIR/frontend" && npm run dev > /tmp/papers-frontend.log 2>&1 &)
+        sleep 2
+    fi
+
+    open http://localhost:5173
+fi

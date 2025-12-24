@@ -15,18 +15,15 @@ A paper management app (Paperpile alternative) for tracking ML research papers.
 
 ## Development
 
-**For dev work (with hot reload):**
+**One command for everything:**
 ```bash
-cd /Users/kshitij/code/misc/papers && ./start.sh
+papers        # starts if needed, opens browser
+papers --dev  # kills existing, hot reload, foreground (Ctrl+C to stop)
 ```
-This kills existing processes and starts with `--reload` for hot reloading.
-
-**For normal usage:** User types `papers` in terminal - starts services if needed and opens browser.
 
 **If the site goes down:**
 ```bash
-lsof -ti:8000 | xargs kill -9; lsof -ti:5173 | xargs kill -9
-./start.sh
+papers --dev
 ```
 
 ## Key Features
