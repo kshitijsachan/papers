@@ -5,12 +5,17 @@
 
 PAPERS_DIR="$HOME/code/misc/papers"
 
-if [[ "$1" == "--dev" || "$1" == "-d" ]]; then
-    # Dev mode: kill existing, start with hot reload, stay in foreground
-    echo "Starting in dev mode..."
+# Helper: kill any existing processes on our ports
+kill_existing() {
     lsof -ti:8000 | xargs kill -9 2>/dev/null
     lsof -ti:5173 | xargs kill -9 2>/dev/null
     sleep 1
+}
+
+if [[ "$1" == "--dev" || "$1" == "-d" ]]; then
+    # Dev mode: kill existing, start with hot reload, stay in foreground
+    echo "Starting in dev mode..."
+    kill_existing
 
     (cd "$PAPERS_DIR/backend" && uv run uvicorn main:app --reload --port 8000) &
     BACKEND_PID=$!
@@ -28,18 +33,13 @@ if [[ "$1" == "--dev" || "$1" == "-d" ]]; then
     trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit" INT
     wait
 else
-    # Normal mode: start if needed, open browser
-    if ! curl -s http://localhost:8000/sync-status > /dev/null 2>&1; then
-        echo "Starting backend..."
-        (cd "$PAPERS_DIR/backend" && uv run uvicorn main:app --port 8000 > /tmp/papers-backend.log 2>&1 &)
-        sleep 2
-    fi
+    # Normal mode: always kill and restart for clean state
+    echo "Starting papers..."
+    kill_existing
 
-    if ! curl -s http://localhost:5173 > /dev/null 2>&1; then
-        echo "Starting frontend..."
-        (cd "$PAPERS_DIR/frontend" && npm run dev > /tmp/papers-frontend.log 2>&1 &)
-        sleep 2
-    fi
+    (cd "$PAPERS_DIR/backend" && uv run uvicorn main:app --port 8000 > /tmp/papers-backend.log 2>&1 &)
+    (cd "$PAPERS_DIR/frontend" && npm run dev > /tmp/papers-frontend.log 2>&1 &)
+    sleep 3
 
     open http://localhost:5173
 fi
