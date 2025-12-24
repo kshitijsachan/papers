@@ -42,6 +42,7 @@ export const Header = forwardRef<HeaderHandle>(function Header(_, ref) {
       abstract: result.abstract,
       url: result.url,
       arxiv_url: result.arxiv_url,
+      published_date: result.published_date,
       read_status: false,
     });
     setQuery('');
@@ -57,7 +58,10 @@ export const Header = forwardRef<HeaderHandle>(function Header(_, ref) {
   return (
     <header className="sticky top-0 z-10 bg-gradient-to-r from-slate-50 via-white to-slate-50 border-b border-gray-200/60 px-6 py-4 backdrop-blur-sm">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
-        <h1 className="text-xl font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Papers</h1>
+        <h1 className="text-xl font-semibold flex items-center gap-2">
+          <span className="text-2xl">📚</span>
+          <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent tracking-tight">Papers</span>
+        </h1>
 
         <div ref={searchRef} className="relative w-96">
           <input

@@ -2,22 +2,29 @@
 
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
 import threading
 import xml.etree.ElementTree as ET
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
+import anthropic
 import httpx
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from sqlmodel import Session, select
 
+from arxiv_client import get_recent_papers
 from database import DATA_DIR, create_db_and_tables, get_session
 from models import NotesUpdate, Paper, PaperCreate, PaperRead, PaperUpdate
+from papers_with_code import get_code_url_from_abstract
+from semantic_scholar import get_recommendations as ss_get_recommendations
+from semantic_scholar import search_paper
 
 ARXIV_API = "https://export.arxiv.org/api/query"
 DB_PATH = DATA_DIR / "papers.db"
@@ -42,7 +49,18 @@ def trigger_backup():
 def _run_backup():
     """Run the backup script."""
     if BACKUP_SCRIPT.exists():
-        subprocess.run(["/bin/bash", str(BACKUP_SCRIPT)], capture_output=True)
+        env = {
+            "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/sbin",
+            "HOME": str(Path.home()),
+        }
+        result = subprocess.run(
+            ["/bin/bash", str(BACKUP_SCRIPT)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        if result.returncode != 0:
+            print(f"Backup failed: {result.stderr}", flush=True)
 
 
 @asynccontextmanager
@@ -181,6 +199,8 @@ def update_paper(
         raise HTTPException(status_code=404, detail="Paper not found")
     if paper_update.read_status is not None:
         paper.read_status = paper_update.read_status
+    if paper_update.published_date is not None:
+        paper.published_date = paper_update.published_date
     session.add(paper)
     session.commit()
     session.refresh(paper)
@@ -567,3 +587,347 @@ async def get_figure_image(arxiv_id: str, filename: str):
     media_type = media_types.get(ext, "application/octet-stream")
 
     return FileResponse(file_path, media_type=media_type)
+
+
+# Recommendations caching
+RECS_CACHE_FILE = DATA_DIR / "recommendations_cache.json"
+RECS_CACHE_TTL = 3600  # 1 hour
+
+
+def _get_cached_recommendations() -> dict | None:
+    """Get cached recommendations if still valid."""
+    if not RECS_CACHE_FILE.exists():
+        return None
+    try:
+        data = json.loads(RECS_CACHE_FILE.read_text())
+        generated_at = datetime.fromisoformat(data["generated_at"])
+        age = (datetime.now(timezone.utc) - generated_at).total_seconds()
+        if age < RECS_CACHE_TTL:
+            return data
+    except (json.JSONDecodeError, KeyError, ValueError):
+        pass
+    return None
+
+
+def _cache_recommendations(data: dict) -> None:
+    """Cache recommendations to file."""
+    RECS_CACHE_FILE.write_text(json.dumps(data, default=str))
+
+
+async def _score_papers_with_claude(
+    library_papers: list[dict],
+    candidate_papers: list[dict],
+) -> list[dict]:
+    """Use Claude to score and explain paper relevance.
+
+    Parameters
+    ----------
+    library_papers : list[dict]
+        User's saved papers with title and abstract.
+    candidate_papers : list[dict]
+        Candidate papers to score.
+
+    Returns
+    -------
+    list[dict]
+        Scored papers with 'score' and 'explanation' fields added.
+    """
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        # No API key - return papers without scoring
+        for p in candidate_papers:
+            p["score"] = 5.0
+            p["explanation"] = "Claude scoring unavailable (no API key)"
+        return candidate_papers[:20]
+
+    # Build library summary
+    library_summary = "\n".join(
+        f"- {p['title']}" for p in library_papers[:50]  # Limit to avoid token overflow
+    )
+
+    # Build candidate list
+    candidates_text = "\n\n".join(
+        f"[{i}] {p['title']}\nAuthors: {p.get('authors', 'Unknown')}\nAbstract: {(p.get('abstract') or '')[:500]}"
+        for i, p in enumerate(candidate_papers[:40])  # Limit candidates
+    )
+
+    prompt = f"""You are helping a machine learning researcher find relevant papers.
+
+The researcher's library contains these papers:
+{library_summary}
+
+Score these candidate papers for relevance (1-10, where 10 = extremely relevant):
+
+{candidates_text}
+
+For each paper, respond with exactly one line in this format:
+INDEX|SCORE|EXPLANATION
+
+Where INDEX is the number in brackets, SCORE is 1-10, and EXPLANATION is a brief reason.
+Only include papers scoring 5 or above. Example:
+0|8|Directly addresses quantization methods for transformers
+3|7|Related work on model compression
+
+Start your response with the first scored paper (no preamble):"""
+
+    client = anthropic.AsyncAnthropic(api_key=api_key)
+
+    try:
+        response = await client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=2000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        response_text = response.content[0].text
+
+        # Parse pipe-delimited format
+        result = []
+        seen_indices = set()
+        for line in response_text.strip().split("\n"):
+            line = line.strip()
+            if not line or "|" not in line:
+                continue
+            parts = line.split("|", 2)
+            if len(parts) < 3:
+                continue
+            try:
+                idx = int(parts[0].strip().strip("[]"))
+                score = float(parts[1].strip())
+                explanation = parts[2].strip()
+            except (ValueError, IndexError):
+                continue
+            if idx < 0 or idx >= len(candidate_papers) or idx in seen_indices:
+                continue
+            seen_indices.add(idx)
+            paper = candidate_papers[idx].copy()
+            paper["score"] = score
+            paper["explanation"] = explanation
+            result.append(paper)
+
+        # Sort by score descending
+        result.sort(key=lambda x: x["score"], reverse=True)
+        return result[:20]
+
+    except Exception as e:
+        print(f"Claude scoring failed: {e}", flush=True)
+        # Fallback: return unsorted with default scores
+        for p in candidate_papers[:20]:
+            p["score"] = 5.0
+            p["explanation"] = "Scoring unavailable"
+        return candidate_papers[:20]
+
+
+@app.get("/recommendations")
+async def get_recommendations_endpoint(
+    refresh: bool = False,
+    session: Session = Depends(get_session),
+) -> dict:
+    """Get paper recommendations based on user's library.
+
+    Parameters
+    ----------
+    refresh : bool
+        Force refresh recommendations, ignoring cache.
+    session : Session
+        Database session.
+
+    Returns
+    -------
+    dict
+        Recommendations with 'new_papers' and 'related_papers' lists.
+    """
+    # Check cache first
+    if not refresh:
+        cached = _get_cached_recommendations()
+        if cached:
+            return cached
+
+    # Get user's library
+    papers = list(session.exec(select(Paper)).all())
+    if not papers:
+        return {
+            "new_papers": [],
+            "related_papers": [],
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "message": "Add papers to your library to get recommendations",
+        }
+
+    # Prepare library data for Claude
+    library_data = [
+        {"title": p.title, "abstract": p.abstract, "arxiv_url": p.arxiv_url}
+        for p in papers
+    ]
+
+    # Get existing arxiv IDs to filter out
+    existing_arxiv_ids = set()
+    for p in papers:
+        if p.arxiv_url:
+            match = re.search(r"(\d{4}\.\d{4,5})", p.arxiv_url)
+            if match:
+                existing_arxiv_ids.add(match.group(1))
+
+    async with httpx.AsyncClient() as client:
+        # Fetch recent arXiv papers
+        new_candidates = await get_recent_papers(
+            categories=["cs.LG", "cs.CL", "cs.AI", "stat.ML"],
+            days=3,
+            max_results=50,
+            client=client,
+        )
+
+        # Filter out papers already in library
+        new_candidates = [
+            p for p in new_candidates
+            if p.get("arxiv_id") and p["arxiv_id"] not in existing_arxiv_ids
+        ]
+
+        # Get Semantic Scholar recommendations
+        related_candidates = []
+        ss_paper_ids = []
+
+        # Get SS IDs for a sample of user's papers
+        sample_papers = papers[:10]  # Use first 10 papers as seeds
+        for p in sample_papers:
+            if p.arxiv_url:
+                match = re.search(r"(\d{4}\.\d{4,5})", p.arxiv_url)
+                if match:
+                    ss_id = await search_paper(match.group(1), client=client)
+                    if ss_id:
+                        ss_paper_ids.append(ss_id)
+
+        if ss_paper_ids:
+            ss_recs = await ss_get_recommendations(ss_paper_ids, limit=30, client=client)
+            for rec in ss_recs:
+                arxiv_id = None
+                if rec.get("externalIds", {}).get("ArXiv"):
+                    arxiv_id = rec["externalIds"]["ArXiv"]
+
+                if arxiv_id and arxiv_id in existing_arxiv_ids:
+                    continue
+
+                # Get publication date (prefer full date, fall back to year)
+                pub_date = rec.get("publicationDate")
+                if not pub_date and rec.get("year"):
+                    pub_date = f"{rec['year']}-01-01"
+
+                related_candidates.append({
+                    "title": rec.get("title", ""),
+                    "authors": ", ".join(a.get("name", "") for a in rec.get("authors", [])[:5]),
+                    "abstract": rec.get("abstract", ""),
+                    "arxiv_id": arxiv_id,
+                    "arxiv_url": f"https://arxiv.org/abs/{arxiv_id}" if arxiv_id else rec.get("url"),
+                    "url": f"https://arxiv.org/abs/{arxiv_id}" if arxiv_id else rec.get("url"),
+                    "published_date": pub_date,
+                    "citation_count": rec.get("citationCount", 0),
+                })
+
+        # Score papers with Claude (in parallel)
+        import asyncio
+        scored_new, scored_related = await asyncio.gather(
+            _score_papers_with_claude(library_data, new_candidates),
+            _score_papers_with_claude(library_data, related_candidates),
+        )
+
+        # Extract code URLs from abstracts
+        for paper in scored_new + scored_related:
+            code_url = get_code_url_from_abstract(paper.get("abstract"))
+            if code_url:
+                paper["code_url"] = code_url
+
+    # Build response
+    result = {
+        "new_papers": [
+            {
+                "title": p["title"],
+                "authors": p.get("authors", ""),
+                "abstract": p.get("abstract", ""),
+                "arxiv_id": p.get("arxiv_id", ""),
+                "arxiv_url": p.get("arxiv_url") or p.get("url", ""),
+                "published_date": p.get("published_date", ""),
+                "relevance_score": p.get("score", 5),
+                "explanation": p.get("explanation", ""),
+                "code_url": p.get("code_url"),
+                "source": "arxiv_daily",
+            }
+            for p in scored_new
+        ],
+        "related_papers": [
+            {
+                "title": p["title"],
+                "authors": p.get("authors", ""),
+                "abstract": p.get("abstract", ""),
+                "arxiv_id": p.get("arxiv_id", ""),
+                "arxiv_url": p.get("arxiv_url") or p.get("url", ""),
+                "published_date": p.get("published_date", ""),
+                "relevance_score": p.get("score", 5),
+                "explanation": p.get("explanation", ""),
+                "code_url": p.get("code_url"),
+                "citation_count": p.get("citation_count", 0),
+                "source": "semantic_scholar",
+            }
+            for p in scored_related
+        ],
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    # Cache results
+    _cache_recommendations(result)
+
+    return result
+
+
+@app.get("/papers/{paper_id}/code-url")
+def get_paper_code_url(
+    paper_id: int, session: Session = Depends(get_session)
+) -> dict:
+    """Get GitHub code URL for a paper by extracting from abstract.
+
+    Parameters
+    ----------
+    paper_id : int
+        ID of the paper.
+    session : Session
+        Database session.
+
+    Returns
+    -------
+    dict
+        Dictionary with 'code_url' key (may be null).
+    """
+    paper = session.get(Paper, paper_id)
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    code_url = get_code_url_from_abstract(paper.abstract)
+    return {"code_url": code_url}
+
+
+@app.post("/papers/code-urls")
+def get_papers_code_urls(
+    paper_ids: list[int], session: Session = Depends(get_session)
+) -> dict[str, str | None]:
+    """Get GitHub code URLs for multiple papers by extracting from abstracts.
+
+    Parameters
+    ----------
+    paper_ids : list[int]
+        List of paper IDs.
+    session : Session
+        Database session.
+
+    Returns
+    -------
+    dict[str, str | None]
+        Dictionary mapping paper ID (as string) to code URL.
+    """
+    results: dict[str, str | None] = {}
+
+    for pid in paper_ids:
+        paper = session.get(Paper, pid)
+        if not paper:
+            results[str(pid)] = None
+            continue
+        results[str(pid)] = get_code_url_from_abstract(paper.abstract)
+
+    return results

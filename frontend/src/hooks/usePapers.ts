@@ -64,6 +64,17 @@ async function fetchFigures(id: number): Promise<Figure[]> {
   return res.json();
 }
 
+async function fetchCodeUrls(paperIds: number[]): Promise<Record<string, string | null>> {
+  if (paperIds.length === 0) return {};
+  const res = await fetch(`${API_BASE}/papers/code-urls`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(paperIds),
+  });
+  if (!res.ok) throw new Error('Failed to fetch code URLs');
+  return res.json();
+}
+
 export function usePapers() {
   return useQuery({
     queryKey: ['papers'],
@@ -137,5 +148,18 @@ export function useFigures(id: number | null) {
     queryFn: () => fetchFigures(id!),
     enabled: id !== null,
     staleTime: 300000,
+  });
+}
+
+export function useCodeUrls(paperIds: number[]) {
+  // Sort IDs for stable query key
+  const sortedIds = [...paperIds].sort((a, b) => a - b);
+  const queryKey = ['codeUrls', sortedIds.join(',')];
+
+  return useQuery({
+    queryKey,
+    queryFn: () => fetchCodeUrls(paperIds),
+    enabled: paperIds.length > 0,
+    staleTime: 3600000, // Cache for 1 hour
   });
 }

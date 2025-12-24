@@ -10,6 +10,7 @@ dependencies = [
     "httpx>=0.26.0",
     "marker-pdf>=1.6.2",
     "transformers<4.48",
+    "anthropic>=0.46.0",
 ]
 
 [dependency-groups]

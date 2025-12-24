@@ -5,13 +5,17 @@ import type { HeaderHandle } from './components/Header';
 import { PaperGrid } from './components/PaperGrid';
 import type { PaperGridHandle } from './components/PaperGrid';
 import { PaperDetail } from './components/PaperDetail';
+import { RecommendationsPage } from './components/RecommendationsPage';
 import { SyncIndicator } from './components/SyncIndicator';
 import { useUpdatePaper } from './hooks/usePapers';
 import type { Paper } from './types/paper';
 
+type Tab = 'library' | 'recommendations';
+
 const queryClient = new QueryClient();
 
 function AppContent() {
+  const [activeTab, setActiveTab] = useState<Tab>('library');
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -102,11 +106,38 @@ function AppContent() {
       <Header ref={headerRef} />
 
       <main className="max-w-6xl mx-auto px-6 py-8">
-        <PaperGrid
-          ref={gridRef}
-          onSelectPaper={setSelectedPaper}
-          selectedIndex={selectedIndex}
-        />
+        <div className="flex gap-1 mb-6">
+          <button
+            onClick={() => setActiveTab('library')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === 'library'
+                ? 'bg-indigo-100 text-indigo-700'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            Library
+          </button>
+          <button
+            onClick={() => setActiveTab('recommendations')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === 'recommendations'
+                ? 'bg-indigo-100 text-indigo-700'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            Recommendations
+          </button>
+        </div>
+
+        {activeTab === 'library' ? (
+          <PaperGrid
+            ref={gridRef}
+            onSelectPaper={setSelectedPaper}
+            selectedIndex={selectedIndex}
+          />
+        ) : (
+          <RecommendationsPage />
+        )}
       </main>
 
       {selectedPaper && (

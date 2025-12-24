@@ -27,3 +27,21 @@ export interface Figure {
   caption?: string;
   ar5iv_link?: string;
 }
+
+export interface RecommendedPaper {
+  title: string;
+  authors: string;
+  abstract?: string;
+  arxiv_url?: string;
+  published_date?: string;
+  code_url?: string;
+  relevance_score: number;
+  explanation: string;
+  citation_count?: number;
+}
+
+export interface RecommendationsResponse {
+  new_papers: RecommendedPaper[];
+  related_papers: RecommendedPaper[];
+  generated_at: string;
+}

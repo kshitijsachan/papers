@@ -1,9 +1,9 @@
 import { useState, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
-import { usePapers, useUpdatePaper, useDeletePaper } from '../hooks/usePapers';
+import { usePapers, useUpdatePaper, useDeletePaper, useCodeUrls } from '../hooks/usePapers';
 import { PaperCard } from './PaperCard';
 import type { Paper } from '../types/paper';
 
-type SortOption = 'date' | 'title' | 'status';
+type SortOption = 'date' | 'published' | 'title' | 'status';
 type FilterOption = 'all' | 'unread' | 'read';
 type ViewMode = 'grid' | 'table';
 
@@ -29,6 +29,13 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
   const { data: papers, isLoading, error } = usePapers();
   const updatePaper = useUpdatePaper();
   const deletePaper = useDeletePaper();
+
+  // Fetch code URLs for all papers
+  const paperIds = useMemo(() => {
+    if (!papers) return [];
+    return papers.map(p => p.id).filter((id): id is number => id !== undefined && id !== null);
+  }, [papers]);
+  const { data: codeUrls } = useCodeUrls(paperIds);
 
   const filteredAndSortedPapers = useMemo(() => {
     if (!papers) return [];
@@ -56,6 +63,11 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
           return a.title.localeCompare(b.title);
         case 'status':
           return (a.read_status ? 1 : 0) - (b.read_status ? 1 : 0);
+        case 'published':
+          return (
+            new Date(b.published_date || 0).getTime() -
+            new Date(a.published_date || 0).getTime()
+          );
         case 'date':
         default:
           return (
@@ -179,6 +191,7 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
             className="px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 transition-all text-gray-700"
           >
             <option value="date">Sort: Date added</option>
+            <option value="published">Sort: Published</option>
             <option value="title">Sort: Title</option>
             <option value="status">Sort: Read status</option>
           </select>
@@ -290,6 +303,7 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Authors</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24 hidden sm:table-cell">Published</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Status</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">Code</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-24 hidden sm:table-cell">Added</th>
               </tr>
             </thead>
@@ -345,6 +359,20 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
                     >
                       {paper.read_status ? 'read' : 'unread'}
                     </button>
+                  </td>
+                  <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                    {codeUrls?.[String(paper.id)] ? (
+                      <a
+                        href={codeUrls[String(paper.id)]!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2 py-1 text-xs font-medium text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                      >
+                        Code
+                      </a>
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right hidden sm:table-cell">
                     <span className="text-xs text-gray-400">

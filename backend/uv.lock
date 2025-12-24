@@ -1027,6 +1027,7 @@ name = "papers-backend"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "anthropic" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "marker-pdf" },
@@ -1043,6 +1044,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anthropic", specifier = ">=0.46.0" },
     { name = "fastapi", specifier = ">=0.109.0" },
     { name = "httpx", specifier = ">=0.26.0" },
     { name = "marker-pdf", specifier = ">=1.6.2" },

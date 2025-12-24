@@ -29,9 +29,12 @@ GIST_ID_FILE="$HOME/.papers/.gist_id"
 
 if [ -f "$GIST_ID_FILE" ]; then
     GIST_ID=$(cat "$GIST_ID_FILE")
-    gh gist edit "$GIST_ID" "$BACKUP_FILE" -f "papers_backup.sql" >/dev/null 2>&1 && \
-        echo "$CURRENT_HASH" > "$HASH_FILE" && \
+    if gh gist edit "$GIST_ID" "$BACKUP_FILE" -f "papers_backup.sql" 2>&1; then
+        echo "$CURRENT_HASH" > "$HASH_FILE"
         echo "Backed up: $TIMESTAMP"
+    else
+        echo "gh gist edit failed"
+    fi
 else
     GIST_URL=$(gh gist create "$BACKUP_FILE" -d "Papers database backup" -f "papers_backup.sql" 2>&1)
     GIST_ID=$(echo "$GIST_URL" | grep -oE '[a-f0-9]{32}')

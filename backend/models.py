@@ -44,6 +44,7 @@ class PaperUpdate(SQLModel):
     """Schema for updating a paper."""
 
     read_status: bool | None = None
+    published_date: datetime | None = None
 
 
 class NotesUpdate(SQLModel):
