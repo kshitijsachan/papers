@@ -8,6 +8,7 @@ export interface Paper {
   read_status: boolean;
   notes?: string;
   created_at?: string;
+  published_date?: string;
 }
 
 export interface SearchResult {
@@ -17,6 +18,7 @@ export interface SearchResult {
   url?: string;
   arxiv_url?: string;
   arxiv_id?: string;
+  published_date?: string;
 }
 
 export interface Figure {

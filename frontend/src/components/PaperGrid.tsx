@@ -288,8 +288,8 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Authors</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24 hidden sm:table-cell">Published</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32 hidden sm:table-cell">Added</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -318,6 +318,16 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
                       {paper.authors.split(', ').length > 2 && ' et al.'}
                     </p>
                   </td>
+                  <td className="px-4 py-3 text-center hidden sm:table-cell">
+                    <span className="text-xs text-gray-400">
+                      {paper.published_date
+                        ? new Date(paper.published_date).toLocaleDateString('en-US', {
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                        : '—'}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-center">
                     <button
                       onClick={(e) => {
@@ -334,16 +344,6 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
                     >
                       {paper.read_status ? 'read' : 'unread'}
                     </button>
-                  </td>
-                  <td className="px-4 py-3 text-right hidden sm:table-cell">
-                    <span className="text-xs text-gray-400">
-                      {paper.created_at
-                        ? new Date(paper.created_at).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                          })
-                        : '—'}
-                    </span>
                   </td>
                 </tr>
               ))}

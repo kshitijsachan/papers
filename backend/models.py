@@ -13,6 +13,7 @@ class PaperBase(SQLModel):
     abstract: str | None = None
     url: str | None = None
     arxiv_url: str | None = None
+    published_date: datetime | None = None
 
 
 class Paper(PaperBase, table=True):

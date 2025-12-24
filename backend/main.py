@@ -215,6 +215,9 @@ def parse_arxiv_response(xml_text: str) -> list[dict]:
         arxiv_url = id_el.text if id_el is not None else None
         arxiv_id = arxiv_url.split("/abs/")[-1] if arxiv_url else None
 
+        published_el = entry.find("atom:published", ns)
+        published_date = published_el.text if published_el is not None else None
+
         papers.append({
             "title": title,
             "authors": ", ".join(authors),
@@ -222,6 +225,7 @@ def parse_arxiv_response(xml_text: str) -> list[dict]:
             "url": arxiv_url,
             "arxiv_url": arxiv_url,
             "arxiv_id": arxiv_id,
+            "published_date": published_date,
         })
 
     return papers
