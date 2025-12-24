@@ -47,6 +47,22 @@ function AppContent() {
       const papers = gridRef.current?.getFilteredPapers() || [];
 
       switch (e.key) {
+        case 'ArrowLeft':
+          if (selectedPaper && selectedIndex > 0) {
+            e.preventDefault();
+            const newIndex = selectedIndex - 1;
+            setSelectedIndex(newIndex);
+            setSelectedPaper(papers[newIndex]);
+          }
+          break;
+        case 'ArrowRight':
+          if (selectedPaper && selectedIndex < papers.length - 1) {
+            e.preventDefault();
+            const newIndex = selectedIndex + 1;
+            setSelectedIndex(newIndex);
+            setSelectedPaper(papers[newIndex]);
+          }
+          break;
         case '/':
           e.preventDefault();
           headerRef.current?.focusSearch();
@@ -141,7 +157,21 @@ function AppContent() {
       </main>
 
       {selectedPaper && (
-        <PaperDetail key={selectedPaper.id} paper={selectedPaper} onClose={() => setSelectedPaper(null)} />
+        <PaperDetail
+          key={selectedPaper.id}
+          paper={selectedPaper}
+          onClose={() => setSelectedPaper(null)}
+          currentIndex={selectedIndex}
+          totalPapers={gridRef.current?.getFilteredPapers().length || 0}
+          onNavigate={(delta) => {
+            const papers = gridRef.current?.getFilteredPapers() || [];
+            const newIndex = selectedIndex + delta;
+            if (newIndex >= 0 && newIndex < papers.length) {
+              setSelectedIndex(newIndex);
+              setSelectedPaper(papers[newIndex]);
+            }
+          }}
+        />
       )}
 
       <div className="fixed bottom-4 right-4 flex items-center gap-3">
@@ -184,6 +214,13 @@ function AppContent() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Open selected paper</span>
                 <kbd className="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono">Enter</kbd>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Previous/next paper</span>
+                <div className="flex gap-1">
+                  <kbd className="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono">←</kbd>
+                  <kbd className="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono">→</kbd>
+                </div>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Toggle read status</span>

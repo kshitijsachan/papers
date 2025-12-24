@@ -6,6 +6,9 @@ import type { Paper, Figure } from '../types/paper';
 interface PaperDetailProps {
   paper: Paper;
   onClose: () => void;
+  currentIndex?: number;
+  totalPapers?: number;
+  onNavigate?: (delta: number) => void;
 }
 
 interface FigureLightboxProps {
@@ -94,7 +97,9 @@ function FigureLightbox({ figure, figures, currentIndex, onClose, onNavigate }: 
   );
 }
 
-export function PaperDetail({ paper, onClose }: PaperDetailProps) {
+export function PaperDetail({ paper, onClose, currentIndex, totalPapers, onNavigate }: PaperDetailProps) {
+  const hasPrev = currentIndex !== undefined && currentIndex > 0;
+  const hasNext = currentIndex !== undefined && totalPapers !== undefined && currentIndex < totalPapers - 1;
   const [notes, setNotes] = useState(paper.notes || '');
   const [selectedFigureIndex, setSelectedFigureIndex] = useState<number | null>(null);
   const hasChanges = notes !== (paper.notes || '');
@@ -131,16 +136,47 @@ export function PaperDetail({ paper, onClose }: PaperDetailProps) {
         <div className="relative min-h-full flex items-start justify-center p-4 pt-16" onClick={onClose}>
           <div className="relative bg-white rounded-2xl shadow-2xl shadow-gray-300/50 max-w-2xl w-full max-h-[calc(100vh-8rem)] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
-              <button
-                onClick={handleToggleRead}
-                className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                  paper.read_status
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-indigo-100 hover:text-indigo-700'
-                }`}
-              >
-                {paper.read_status ? 'Read' : 'Mark as Read'}
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleToggleRead}
+                  className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                    paper.read_status
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-indigo-100 hover:text-indigo-700'
+                  }`}
+                >
+                  {paper.read_status ? 'Read' : 'Mark as Read'}
+                </button>
+
+                {/* Navigation */}
+                {totalPapers !== undefined && totalPapers > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => onNavigate?.(-1)}
+                      disabled={!hasPrev}
+                      className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Previous paper (←)"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <span className="text-xs text-gray-400 min-w-[3rem] text-center">
+                      {(currentIndex ?? 0) + 1} / {totalPapers}
+                    </span>
+                    <button
+                      onClick={() => onNavigate?.(1)}
+                      disabled={!hasNext}
+                      className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Next paper (→)"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <div className="flex items-center gap-2">
                 <button
