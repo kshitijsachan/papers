@@ -1,0 +1,7 @@
+fastapi>=0.109.0
+sqlmodel>=0.0.14
+uvicorn[standard]>=0.27.0
+httpx>=0.26.0
+beautifulsoup4>=4.12.0
+psycopg2-binary>=2.9.11
+boto3>=1.42.4

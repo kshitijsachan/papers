@@ -332,6 +332,11 @@ FIGURES_CACHE_DIR = Path.home() / ".papers" / "figures"
 FIGURES_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
+import os
+
+MARKER_ENABLED = os.environ.get("MARKER_ENABLED", "true").lower() == "true"
+
+
 def extract_figures_from_pdf(pdf_path: Path, cache_dir: Path) -> list[dict]:
     """Extract figures from a PDF using Marker.
 
@@ -349,6 +354,9 @@ def extract_figures_from_pdf(pdf_path: Path, cache_dir: Path) -> list[dict]:
     list[dict]
         List of figures with image URLs and captions.
     """
+    if not MARKER_ENABLED:
+        raise RuntimeError("Figure extraction is disabled in this environment")
+
     import subprocess
     import re
 
