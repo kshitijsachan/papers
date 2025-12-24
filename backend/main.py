@@ -5,6 +5,7 @@ import json
 import re
 import shutil
 import subprocess
+import threading
 import xml.etree.ElementTree as ET
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -21,6 +22,27 @@ from models import NotesUpdate, Paper, PaperCreate, PaperRead, PaperUpdate
 ARXIV_API = "https://export.arxiv.org/api/query"
 DB_PATH = DATA_DIR / "papers.db"
 HASH_FILE = DATA_DIR / ".last_backup_hash"
+BACKUP_SCRIPT = Path(__file__).parent.parent / "backup.sh"
+
+# Debounced backup - waits 5 seconds after last edit before backing up
+_backup_timer: threading.Timer | None = None
+_backup_lock = threading.Lock()
+
+
+def trigger_backup():
+    """Trigger a debounced backup (5 second delay)."""
+    global _backup_timer
+    with _backup_lock:
+        if _backup_timer:
+            _backup_timer.cancel()
+        _backup_timer = threading.Timer(5.0, _run_backup)
+        _backup_timer.start()
+
+
+def _run_backup():
+    """Run the backup script."""
+    if BACKUP_SCRIPT.exists():
+        subprocess.run(["/bin/bash", str(BACKUP_SCRIPT)], capture_output=True)
 
 
 @asynccontextmanager
@@ -125,6 +147,7 @@ def create_paper(
     session.add(db_paper)
     session.commit()
     session.refresh(db_paper)
+    trigger_backup()
     return db_paper
 
 
@@ -161,6 +184,7 @@ def update_paper(
     session.add(paper)
     session.commit()
     session.refresh(paper)
+    trigger_backup()
     return paper
 
 
@@ -185,6 +209,7 @@ def delete_paper(paper_id: int, session: Session = Depends(get_session)) -> None
         raise HTTPException(status_code=404, detail="Paper not found")
     session.delete(paper)
     session.commit()
+    trigger_backup()
 
 
 def parse_arxiv_response(xml_text: str) -> list[dict]:
@@ -328,6 +353,7 @@ def update_paper_notes(
     session.add(paper)
     session.commit()
     session.refresh(paper)
+    trigger_backup()
     return {"notes": paper.notes}
 
 
