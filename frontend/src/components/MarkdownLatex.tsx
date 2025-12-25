@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown';
-import katex from 'katex';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 
 interface MarkdownLatexProps {
@@ -7,65 +8,15 @@ interface MarkdownLatexProps {
   className?: string;
 }
 
-function renderLatex(text: string): React.ReactNode[] {
-  const parts: React.ReactNode[] = [];
-  let remaining = text;
-  let key = 0;
-
-  // Handle display math $$...$$
-  const displayRegex = /\$\$([\s\S]*?)\$\$/g;
-  let lastIndex = 0;
-  let match;
-
-  while ((match = displayRegex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
-    }
-    try {
-      const html = katex.renderToString(match[1], { throwOnError: false, displayMode: true });
-      parts.push(<span key={key++} className="block my-2" dangerouslySetInnerHTML={{ __html: html }} />);
-    } catch {
-      parts.push(<span key={key++}>{match[0]}</span>);
-    }
-    lastIndex = match.index + match[0].length;
-  }
-
-  remaining = lastIndex < text.length ? text.slice(lastIndex) : '';
-
-  // Handle inline math $...$
-  if (remaining) {
-    const inlineRegex = /\$([^$]+)\$/g;
-    lastIndex = 0;
-
-    while ((match = inlineRegex.exec(remaining)) !== null) {
-      if (match.index > lastIndex) {
-        parts.push(<span key={key++}>{remaining.slice(lastIndex, match.index)}</span>);
-      }
-      try {
-        const html = katex.renderToString(match[1], { throwOnError: false, displayMode: false });
-        parts.push(<span key={key++} dangerouslySetInnerHTML={{ __html: html }} />);
-      } catch {
-        parts.push(<span key={key++}>{match[0]}</span>);
-      }
-      lastIndex = match.index + match[0].length;
-    }
-
-    if (lastIndex < remaining.length) {
-      parts.push(<span key={key++}>{remaining.slice(lastIndex)}</span>);
-    }
-  }
-
-  return parts.length > 0 ? parts : [<span key={0}>{text}</span>];
-}
-
 export function MarkdownLatex({ children, className }: MarkdownLatexProps) {
   return (
     <div className={className}>
       <ReactMarkdown
+        remarkPlugins={[remarkMath]}
+        rehypePlugins={[rehypeKatex]}
         components={{
-          // Render LaTeX in text nodes
-          p: ({ children }) => <p className="mb-2">{typeof children === 'string' ? renderLatex(children) : children}</p>,
-          li: ({ children }) => <li>{typeof children === 'string' ? renderLatex(children) : children}</li>,
+          p: ({ children }) => <p className="mb-2">{children}</p>,
+          li: ({ children }) => <li>{children}</li>,
           strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
           em: ({ children }) => <em className="italic">{children}</em>,
           code: ({ children }) => <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">{children}</code>,
