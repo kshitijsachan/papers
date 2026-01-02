@@ -538,7 +538,7 @@ export function PaperDetail({ paper, onClose, currentIndex, totalPapers, onNavig
                       ref={textareaRef}
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      onPaste={(e) => {
+                      onPaste={async (e) => {
                         const items = e.clipboardData?.items;
                         if (!items) return;
                         for (const item of items) {
@@ -546,22 +546,31 @@ export function PaperDetail({ paper, onClose, currentIndex, totalPapers, onNavig
                             e.preventDefault();
                             const file = item.getAsFile();
                             if (!file) return;
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                              const base64 = reader.result as string;
-                              const textarea = textareaRef.current;
-                              if (!textarea) return;
-                              const start = textarea.selectionStart;
-                              const end = textarea.selectionEnd;
-                              const markdown = `![image](${base64})`;
+                            const textarea = textareaRef.current;
+                            if (!textarea) return;
+                            const start = textarea.selectionStart;
+                            const end = textarea.selectionEnd;
+
+                            // Upload to backend
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            try {
+                              const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/uploads`, {
+                                method: 'POST',
+                                body: formData,
+                              });
+                              if (!res.ok) throw new Error('Upload failed');
+                              const { url } = await res.json();
+                              const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${url}`;
+                              const markdown = `![image](${fullUrl})`;
                               const newNotes = notes.slice(0, start) + markdown + notes.slice(end);
                               setNotes(newNotes);
-                              // Move cursor after inserted image
                               setTimeout(() => {
                                 textarea.selectionStart = textarea.selectionEnd = start + markdown.length;
                               }, 0);
-                            };
-                            reader.readAsDataURL(file);
+                            } catch (err) {
+                              console.error('Image upload failed:', err);
+                            }
                             return;
                           }
                         }
@@ -628,7 +637,7 @@ export function PaperDetail({ paper, onClose, currentIndex, totalPapers, onNavig
                           setExperiments(newVal);
                         }
                       }}
-                      onPaste={(e) => {
+                      onPaste={async (e) => {
                         const items = e.clipboardData?.items;
                         if (!items) return;
                         for (const item of items) {
@@ -636,19 +645,29 @@ export function PaperDetail({ paper, onClose, currentIndex, totalPapers, onNavig
                             e.preventDefault();
                             const file = item.getAsFile();
                             if (!file) return;
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                              const base64 = reader.result as string;
-                              const textarea = experimentsTextareaRef.current;
-                              if (!textarea) return;
-                              const start = textarea.selectionStart;
-                              const end = textarea.selectionEnd;
-                              const markdown = `![image](${base64})`;
+                            const textarea = experimentsTextareaRef.current;
+                            if (!textarea) return;
+                            const start = textarea.selectionStart;
+                            const end = textarea.selectionEnd;
+
+                            // Upload to backend
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            try {
+                              const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/uploads`, {
+                                method: 'POST',
+                                body: formData,
+                              });
+                              if (!res.ok) throw new Error('Upload failed');
+                              const { url } = await res.json();
+                              const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${url}`;
+                              const markdown = `![image](${fullUrl})`;
                               const currentVal = textarea.value;
                               textarea.value = currentVal.slice(0, start) + markdown + currentVal.slice(end);
                               textarea.selectionStart = textarea.selectionEnd = start + markdown.length;
-                            };
-                            reader.readAsDataURL(file);
+                            } catch (err) {
+                              console.error('Image upload failed:', err);
+                            }
                             return;
                           }
                         }
