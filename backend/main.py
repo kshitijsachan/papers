@@ -21,7 +21,7 @@ from sqlmodel import Session, select
 
 from arxiv_client import get_recent_papers
 from database import DATA_DIR, create_db_and_tables, get_session
-from models import NotesUpdate, Paper, PaperCreate, PaperRead, PaperUpdate
+from models import NotesUpdate, Paper, PaperCreate, PaperRead, PaperTag, PaperUpdate, Tag, TagCreate, TagRead
 from papers_with_code import get_code_url_from_abstract
 from semantic_scholar import get_recommendations as ss_get_recommendations
 from semantic_scholar import search_paper
@@ -199,6 +199,11 @@ def update_paper(
         raise HTTPException(status_code=404, detail="Paper not found")
     if paper_update.read_status is not None:
         paper.read_status = paper_update.read_status
+        # Auto-unstar when marking as read
+        if paper_update.read_status:
+            paper.starred = False
+    if paper_update.starred is not None:
+        paper.starred = paper_update.starred
     if paper_update.published_date is not None:
         paper.published_date = paper_update.published_date
     session.add(paper)
@@ -369,12 +374,15 @@ def update_paper_notes(
     paper = session.get(Paper, paper_id)
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
-    paper.notes = notes_update.notes
+    if notes_update.notes is not None:
+        paper.notes = notes_update.notes
+    if notes_update.experiments is not None:
+        paper.experiments = notes_update.experiments
     session.add(paper)
     session.commit()
     session.refresh(paper)
     trigger_backup()
-    return {"notes": paper.notes}
+    return {"notes": paper.notes, "experiments": paper.experiments}
 
 
 def extract_arxiv_id(arxiv_url: str | None) -> str | None:
@@ -931,3 +939,82 @@ def get_papers_code_urls(
         results[str(pid)] = get_code_url_from_abstract(paper.abstract)
 
     return results
+
+
+# Tag endpoints
+
+
+@app.get("/tags", response_model=list[TagRead])
+def list_tags(session: Session = Depends(get_session)) -> list[Tag]:
+    """List all tags."""
+    return list(session.exec(select(Tag).order_by(Tag.name)).all())
+
+
+@app.post("/tags", response_model=TagRead, status_code=201)
+def create_tag(tag: TagCreate, session: Session = Depends(get_session)) -> Tag:
+    """Create a new tag."""
+    existing = session.exec(select(Tag).where(Tag.name == tag.name)).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Tag already exists")
+    db_tag = Tag.model_validate(tag)
+    session.add(db_tag)
+    session.commit()
+    session.refresh(db_tag)
+    trigger_backup()
+    return db_tag
+
+
+@app.delete("/tags/{tag_id}", status_code=204)
+def delete_tag(tag_id: int, session: Session = Depends(get_session)) -> None:
+    """Delete a tag."""
+    tag = session.get(Tag, tag_id)
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag not found")
+    session.delete(tag)
+    session.commit()
+    trigger_backup()
+
+
+@app.post("/papers/{paper_id}/tags/{tag_id}", status_code=201)
+def add_tag_to_paper(
+    paper_id: int, tag_id: int, session: Session = Depends(get_session)
+) -> dict:
+    """Add a tag to a paper."""
+    paper = session.get(Paper, paper_id)
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+    tag = session.get(Tag, tag_id)
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag not found")
+
+    # Check if already tagged
+    existing = session.exec(
+        select(PaperTag).where(
+            PaperTag.paper_id == paper_id, PaperTag.tag_id == tag_id
+        )
+    ).first()
+    if existing:
+        return {"status": "already_tagged"}
+
+    paper_tag = PaperTag(paper_id=paper_id, tag_id=tag_id)
+    session.add(paper_tag)
+    session.commit()
+    trigger_backup()
+    return {"status": "tagged"}
+
+
+@app.delete("/papers/{paper_id}/tags/{tag_id}", status_code=204)
+def remove_tag_from_paper(
+    paper_id: int, tag_id: int, session: Session = Depends(get_session)
+) -> None:
+    """Remove a tag from a paper."""
+    paper_tag = session.exec(
+        select(PaperTag).where(
+            PaperTag.paper_id == paper_id, PaperTag.tag_id == tag_id
+        )
+    ).first()
+    if not paper_tag:
+        raise HTTPException(status_code=404, detail="Paper tag not found")
+    session.delete(paper_tag)
+    session.commit()
+    trigger_backup()
