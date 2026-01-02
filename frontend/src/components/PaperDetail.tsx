@@ -137,6 +137,13 @@ export function PaperDetail({ paper, onClose, currentIndex, totalPapers, onNavig
   const createTag = useCreateTag();
   const deleteTagMutation = useDeleteTag();
 
+  // Set initial textarea height based on content (only when entering edit mode)
+  useEffect(() => {
+    if (textareaRef.current && notesMode === 'edit') {
+      const scrollHeight = textareaRef.current.scrollHeight;
+      textareaRef.current.style.height = Math.min(600, Math.max(300, scrollHeight)) + 'px';
+    }
+  }, [notesMode]);
 
   // Auto-save notes with debounce
   useEffect(() => {
@@ -532,7 +539,7 @@ export function PaperDetail({ paper, onClose, currentIndex, totalPapers, onNavig
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       placeholder="Add your notes here... (supports Markdown and LaTeX with $ and $$)"
-                      className="w-full min-h-[200px] max-h-[400px] px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 resize-y font-mono"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 resize-y font-mono"
                     />
                     {updateNotes.isPending && (
                       <span className="absolute bottom-2 right-2 text-xs text-gray-400">Saving...</span>
