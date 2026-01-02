@@ -538,7 +538,35 @@ export function PaperDetail({ paper, onClose, currentIndex, totalPapers, onNavig
                       ref={textareaRef}
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Add your notes here... (supports Markdown and LaTeX with $ and $$)"
+                      onPaste={(e) => {
+                        const items = e.clipboardData?.items;
+                        if (!items) return;
+                        for (const item of items) {
+                          if (item.type.startsWith('image/')) {
+                            e.preventDefault();
+                            const file = item.getAsFile();
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              const base64 = reader.result as string;
+                              const textarea = textareaRef.current;
+                              if (!textarea) return;
+                              const start = textarea.selectionStart;
+                              const end = textarea.selectionEnd;
+                              const markdown = `![image](${base64})`;
+                              const newNotes = notes.slice(0, start) + markdown + notes.slice(end);
+                              setNotes(newNotes);
+                              // Move cursor after inserted image
+                              setTimeout(() => {
+                                textarea.selectionStart = textarea.selectionEnd = start + markdown.length;
+                              }, 0);
+                            };
+                            reader.readAsDataURL(file);
+                            return;
+                          }
+                        }
+                      }}
+                      placeholder="Add your notes here... (supports Markdown, LaTeX, paste images)"
                       className="w-full min-h-[200px] px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 resize-none overflow-hidden transition-all font-mono"
                     />
                     {updateNotes.isPending && (
@@ -600,7 +628,32 @@ export function PaperDetail({ paper, onClose, currentIndex, totalPapers, onNavig
                           setExperiments(newVal);
                         }
                       }}
-                      placeholder="What experiments does this paper suggest? What would you try next?"
+                      onPaste={(e) => {
+                        const items = e.clipboardData?.items;
+                        if (!items) return;
+                        for (const item of items) {
+                          if (item.type.startsWith('image/')) {
+                            e.preventDefault();
+                            const file = item.getAsFile();
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              const base64 = reader.result as string;
+                              const textarea = experimentsTextareaRef.current;
+                              if (!textarea) return;
+                              const start = textarea.selectionStart;
+                              const end = textarea.selectionEnd;
+                              const markdown = `![image](${base64})`;
+                              const currentVal = textarea.value;
+                              textarea.value = currentVal.slice(0, start) + markdown + currentVal.slice(end);
+                              textarea.selectionStart = textarea.selectionEnd = start + markdown.length;
+                            };
+                            reader.readAsDataURL(file);
+                            return;
+                          }
+                        }
+                      }}
+                      placeholder="What experiments does this paper suggest? (paste images supported)"
                       className="w-full min-h-[150px] px-3 py-2.5 text-sm border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-300 resize-none overflow-hidden transition-all font-mono bg-amber-50/30"
                     />
                     {updateNotes.isPending && (
