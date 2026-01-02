@@ -1,3 +1,9 @@
+export interface Tag {
+  id: number;
+  name: string;
+  color: string;
+}
+
 export interface Paper {
   id: number;
   title: string;
@@ -6,9 +12,12 @@ export interface Paper {
   url?: string;
   arxiv_url?: string;
   read_status: boolean;
+  starred: boolean;
   notes?: string;
+  experiments?: string;
   created_at?: string;
   published_date?: string;
+  tags?: Tag[];
 }
 
 export interface SearchResult {

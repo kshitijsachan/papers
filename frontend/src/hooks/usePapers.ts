@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Paper, SearchResult, Figure } from '../types/paper';
+import type { Paper, SearchResult, Figure, Tag } from '../types/paper';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -42,11 +42,14 @@ async function deletePaper(id: number): Promise<void> {
   if (!res.ok) throw new Error('Failed to delete paper');
 }
 
-async function updateNotes(id: number, content: string): Promise<Paper> {
+async function updateNotes(
+  id: number,
+  data: { notes?: string; experiments?: string }
+): Promise<{ notes: string | null; experiments: string | null }> {
   const res = await fetch(`${API_BASE}/papers/${id}/notes`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ notes: content }),
+    body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error('Failed to update notes');
   return res.json();
@@ -124,8 +127,8 @@ export function useDeletePaper() {
 export function useUpdateNotes() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, content }: { id: number; content: string }) =>
-      updateNotes(id, content),
+    mutationFn: ({ id, notes, experiments }: { id: number; notes?: string; experiments?: string }) =>
+      updateNotes(id, { notes, experiments }),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['papers'] });
       queryClient.invalidateQueries({ queryKey: ['paper', id] });
@@ -161,5 +164,96 @@ export function useCodeUrls(paperIds: number[]) {
     queryFn: () => fetchCodeUrls(paperIds),
     enabled: paperIds.length > 0,
     staleTime: 3600000, // Cache for 1 hour
+  });
+}
+
+// Tag API functions
+
+async function fetchTags(): Promise<Tag[]> {
+  const res = await fetch(`${API_BASE}/tags`);
+  if (!res.ok) throw new Error('Failed to fetch tags');
+  return res.json();
+}
+
+async function createTag(tag: { name: string; color: string }): Promise<Tag> {
+  const res = await fetch(`${API_BASE}/tags`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(tag),
+  });
+  if (!res.ok) throw new Error('Failed to create tag');
+  return res.json();
+}
+
+async function deleteTag(id: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/tags/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete tag');
+}
+
+async function addTagToPaper(paperId: number, tagId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/papers/${paperId}/tags/${tagId}`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error('Failed to add tag to paper');
+}
+
+async function removeTagFromPaper(paperId: number, tagId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/papers/${paperId}/tags/${tagId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to remove tag from paper');
+}
+
+// Tag hooks
+
+export function useTags() {
+  return useQuery({
+    queryKey: ['tags'],
+    queryFn: fetchTags,
+  });
+}
+
+export function useCreateTag() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createTag,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+    },
+  });
+}
+
+export function useDeleteTag() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteTag,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['papers'] });
+    },
+  });
+}
+
+export function useAddTagToPaper() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ paperId, tagId }: { paperId: number; tagId: number }) =>
+      addTagToPaper(paperId, tagId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['papers'] });
+    },
+  });
+}
+
+export function useRemoveTagFromPaper() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ paperId, tagId }: { paperId: number; tagId: number }) =>
+      removeTagFromPaper(paperId, tagId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['papers'] });
+    },
   });
 }
