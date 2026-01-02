@@ -14,9 +14,7 @@ from pathlib import Path
 
 import anthropic
 import httpx
-import uuid
-
-from fastapi import Depends, FastAPI, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from sqlmodel import Session, select
@@ -385,71 +383,6 @@ def update_paper_notes(
     session.refresh(paper)
     trigger_backup()
     return {"notes": paper.notes, "experiments": paper.experiments}
-
-
-# Image uploads for notes
-UPLOADS_DIR = DATA_DIR / "uploads"
-UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-
-
-@app.post("/uploads")
-async def upload_image(file: UploadFile) -> dict:
-    """Upload an image and return its URL.
-
-    Parameters
-    ----------
-    file : UploadFile
-        The image file to upload.
-
-    Returns
-    -------
-    dict
-        Contains 'url' key with the image URL.
-    """
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Only image files allowed")
-
-    # Generate unique filename
-    ext = file.filename.split(".")[-1] if file.filename and "." in file.filename else "png"
-    filename = f"{uuid.uuid4().hex}.{ext}"
-    file_path = UPLOADS_DIR / filename
-
-    # Save file
-    content = await file.read()
-    with open(file_path, "wb") as f:
-        f.write(content)
-
-    trigger_backup()
-    return {"url": f"/uploads/{filename}"}
-
-
-@app.get("/uploads/{filename}")
-async def get_uploaded_image(filename: str):
-    """Serve an uploaded image.
-
-    Parameters
-    ----------
-    filename : str
-        The filename of the image.
-
-    Returns
-    -------
-    FileResponse
-        The image file.
-    """
-    file_path = UPLOADS_DIR / filename
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Image not found")
-
-    ext = filename.split(".")[-1].lower()
-    media_types = {
-        "png": "image/png",
-        "jpg": "image/jpeg",
-        "jpeg": "image/jpeg",
-        "gif": "image/gif",
-        "webp": "image/webp",
-    }
-    return FileResponse(file_path, media_type=media_types.get(ext, "application/octet-stream"))
 
 
 def extract_arxiv_id(arxiv_url: str | None) -> str | None:

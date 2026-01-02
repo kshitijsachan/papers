@@ -538,44 +538,7 @@ export function PaperDetail({ paper, onClose, currentIndex, totalPapers, onNavig
                       ref={textareaRef}
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      onPaste={async (e) => {
-                        const items = e.clipboardData?.items;
-                        if (!items) return;
-                        for (const item of items) {
-                          if (item.type.startsWith('image/')) {
-                            e.preventDefault();
-                            const file = item.getAsFile();
-                            if (!file) return;
-                            const textarea = textareaRef.current;
-                            if (!textarea) return;
-                            const start = textarea.selectionStart;
-                            const end = textarea.selectionEnd;
-
-                            // Upload to backend
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            try {
-                              const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/uploads`, {
-                                method: 'POST',
-                                body: formData,
-                              });
-                              if (!res.ok) throw new Error('Upload failed');
-                              const { url } = await res.json();
-                              const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${url}`;
-                              const markdown = `![image](${fullUrl})`;
-                              const newNotes = notes.slice(0, start) + markdown + notes.slice(end);
-                              setNotes(newNotes);
-                              setTimeout(() => {
-                                textarea.selectionStart = textarea.selectionEnd = start + markdown.length;
-                              }, 0);
-                            } catch (err) {
-                              console.error('Image upload failed:', err);
-                            }
-                            return;
-                          }
-                        }
-                      }}
-                      placeholder="Add your notes here... (supports Markdown, LaTeX, paste images)"
+                      placeholder="Add your notes here... (supports Markdown and LaTeX with $ and $$)"
                       className="w-full min-h-[200px] px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 resize-none overflow-hidden transition-all font-mono"
                     />
                     {updateNotes.isPending && (
@@ -637,42 +600,7 @@ export function PaperDetail({ paper, onClose, currentIndex, totalPapers, onNavig
                           setExperiments(newVal);
                         }
                       }}
-                      onPaste={async (e) => {
-                        const items = e.clipboardData?.items;
-                        if (!items) return;
-                        for (const item of items) {
-                          if (item.type.startsWith('image/')) {
-                            e.preventDefault();
-                            const file = item.getAsFile();
-                            if (!file) return;
-                            const textarea = experimentsTextareaRef.current;
-                            if (!textarea) return;
-                            const start = textarea.selectionStart;
-                            const end = textarea.selectionEnd;
-
-                            // Upload to backend
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            try {
-                              const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/uploads`, {
-                                method: 'POST',
-                                body: formData,
-                              });
-                              if (!res.ok) throw new Error('Upload failed');
-                              const { url } = await res.json();
-                              const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${url}`;
-                              const markdown = `![image](${fullUrl})`;
-                              const currentVal = textarea.value;
-                              textarea.value = currentVal.slice(0, start) + markdown + currentVal.slice(end);
-                              textarea.selectionStart = textarea.selectionEnd = start + markdown.length;
-                            } catch (err) {
-                              console.error('Image upload failed:', err);
-                            }
-                            return;
-                          }
-                        }
-                      }}
-                      placeholder="What experiments does this paper suggest? (paste images supported)"
+                      placeholder="What experiments does this paper suggest? What would you try next?"
                       className="w-full min-h-[150px] px-3 py-2.5 text-sm border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-300 resize-none overflow-hidden transition-all font-mono bg-amber-50/30"
                     />
                     {updateNotes.isPending && (
