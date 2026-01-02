@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 
@@ -12,7 +13,7 @@ export function MarkdownLatex({ children, className }: MarkdownLatexProps) {
   return (
     <div className={className}>
       <ReactMarkdown
-        remarkPlugins={[remarkMath]}
+        remarkPlugins={[remarkMath, remarkGfm]}
         rehypePlugins={[rehypeKatex]}
         components={{
           p: ({ children }) => <p className="mb-2">{children}</p>,
@@ -28,6 +29,12 @@ export function MarkdownLatex({ children, className }: MarkdownLatexProps) {
           h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
           a: ({ href, children }) => <a href={href} className="text-indigo-600 hover:underline" target="_blank" rel="noopener noreferrer">{children}</a>,
           blockquote: ({ children }) => <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-2">{children}</blockquote>,
+          table: ({ children }) => <table className="border-collapse border border-gray-300 my-2 w-full text-sm">{children}</table>,
+          thead: ({ children }) => <thead className="bg-gray-100">{children}</thead>,
+          tbody: ({ children }) => <tbody>{children}</tbody>,
+          tr: ({ children }) => <tr className="border-b border-gray-200">{children}</tr>,
+          th: ({ children }) => <th className="border border-gray-300 px-3 py-1.5 text-left font-semibold">{children}</th>,
+          td: ({ children }) => <td className="border border-gray-300 px-3 py-1.5">{children}</td>,
         }}
       >
         {children}

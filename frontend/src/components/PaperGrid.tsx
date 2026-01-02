@@ -1,10 +1,10 @@
 import { useState, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
-import { usePapers, useUpdatePaper, useDeletePaper, useCodeUrls } from '../hooks/usePapers';
+import { usePapers, useUpdatePaper, useDeletePaper, useCodeUrls, useTags } from '../hooks/usePapers';
 import { PaperCard } from './PaperCard';
-import type { Paper } from '../types/paper';
+import type { Paper, Tag } from '../types/paper';
 
 type SortOption = 'date' | 'published' | 'title' | 'status';
-type FilterOption = 'all' | 'unread' | 'read';
+type FilterOption = 'all' | 'unread' | 'read' | 'starred';
 type ViewMode = 'grid' | 'table';
 
 interface PaperGridProps {
@@ -22,11 +22,13 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
   const [filterQuery, setFilterQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('date');
   const [filterStatus, setFilterStatus] = useState<FilterOption>('all');
+  const [filterTags, setFilterTags] = useState<Set<number>>(new Set());
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const filterInputRef = useRef<HTMLInputElement>(null);
 
   const { data: papers, isLoading, error } = usePapers();
+  const { data: tags } = useTags();
   const updatePaper = useUpdatePaper();
   const deletePaper = useDeletePaper();
 
@@ -55,6 +57,15 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
       result = result.filter((p) => p.read_status);
     } else if (filterStatus === 'unread') {
       result = result.filter((p) => !p.read_status);
+    } else if (filterStatus === 'starred') {
+      result = result.filter((p) => p.starred);
+    }
+
+    // Filter by tags
+    if (filterTags.size > 0) {
+      result = result.filter((p) =>
+        p.tags?.some((t) => filterTags.has(t.id))
+      );
     }
 
     result.sort((a, b) => {
@@ -78,7 +89,7 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
     });
 
     return result;
-  }, [papers, filterQuery, sortBy, filterStatus]);
+  }, [papers, filterQuery, sortBy, filterStatus, filterTags]);
 
   useImperativeHandle(ref, () => ({
     focusFilter: () => filterInputRef.current?.focus(),
@@ -202,6 +213,7 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
             className="px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 transition-all text-gray-700"
           >
             <option value="all">All papers</option>
+            <option value="starred">Starred</option>
             <option value="unread">Unread only</option>
             <option value="read">Read only</option>
           </select>
@@ -236,6 +248,46 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
           </div>
         </div>
       </div>
+
+      {/* Tag filter row */}
+      {tags && tags.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {tags.map((tag) => (
+            <button
+              key={tag.id}
+              onClick={() => {
+                setFilterTags((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(tag.id)) next.delete(tag.id);
+                  else next.add(tag.id);
+                  return next;
+                });
+              }}
+              className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${
+                filterTags.has(tag.id)
+                  ? 'ring-2 ring-offset-1'
+                  : 'opacity-60 hover:opacity-100'
+              }`}
+              style={{
+                backgroundColor: tag.color + '20',
+                color: tag.color,
+                borderColor: tag.color,
+                ...(filterTags.has(tag.id) ? { ringColor: tag.color } : {}),
+              }}
+            >
+              {tag.name}
+            </button>
+          ))}
+          {filterTags.size > 0 && (
+            <button
+              onClick={() => setFilterTags(new Set())}
+              className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
 
       {filteredAndSortedPapers.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12">
@@ -299,11 +351,13 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
                     className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                   />
                 </th>
+                <th className="px-2 py-3 w-8"></th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Authors</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24 hidden sm:table-cell">Published</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Status</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">Code</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">PDF</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-24 hidden sm:table-cell">Added</th>
               </tr>
             </thead>
@@ -324,8 +378,42 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
                       className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                     />
                   </td>
+                  <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => {
+                        if (paper.id) {
+                          updatePaper.mutate({ id: paper.id, updates: { starred: !paper.starred } });
+                        }
+                      }}
+                      className={`p-1 rounded transition-colors ${
+                        paper.starred
+                          ? 'text-amber-500 hover:text-amber-600'
+                          : 'text-gray-300 hover:text-amber-400'
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill={paper.starred ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                      </svg>
+                    </button>
+                  </td>
                   <td className="px-4 py-3">
                     <p className="text-sm font-medium text-gray-900 line-clamp-1">{paper.title}</p>
+                    {paper.tags && paper.tags.length > 0 && (
+                      <div className="flex gap-1 mt-1">
+                        {paper.tags.map((tag) => (
+                          <span
+                            key={tag.id}
+                            className="px-1.5 py-0.5 text-[10px] font-medium rounded"
+                            style={{
+                              backgroundColor: tag.color + '20',
+                              color: tag.color,
+                            }}
+                          >
+                            {tag.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     <p className="text-sm text-gray-500 line-clamp-1">
@@ -369,6 +457,20 @@ export const PaperGrid = forwardRef<PaperGridHandle, PaperGridProps>(
                         className="px-2 py-1 text-xs font-medium text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
                       >
                         Code
+                      </a>
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                    {paper.arxiv_url ? (
+                      <a
+                        href={paper.arxiv_url.replace('/abs/', '/pdf/') + '.pdf'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2 py-1 text-xs font-medium text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                      >
+                        PDF
                       </a>
                     ) : (
                       <span className="text-xs text-gray-300">—</span>

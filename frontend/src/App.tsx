@@ -121,7 +121,7 @@ function AppContent() {
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100/50">
       <Header ref={headerRef} />
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-[90rem] mx-auto px-6 py-8">
         <div className="flex gap-1 mb-6">
           <button
             onClick={() => setActiveTab('library')}
@@ -225,6 +225,10 @@ function AppContent() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Toggle read status</span>
                 <kbd className="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono">r</kbd>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Edit notes</span>
+                <kbd className="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono">e</kbd>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Close modal / blur</span>
