@@ -167,6 +167,25 @@ export function PaperDetail({ paper, onClose, currentIndex, totalPapers, onNavig
     return () => clearTimeout(timer);
   }, [experiments, paper.id, paper.experiments]);
 
+  // Save experiments on page unload (e.g., closing tab)
+  useEffect(() => {
+    function handleBeforeUnload() {
+      if (experimentsTextareaRef.current && paper.id) {
+        const currentVal = experimentsTextareaRef.current.value;
+        if (currentVal !== (paper.experiments || '')) {
+          // Use sendBeacon for reliable save on unload
+          const data = JSON.stringify({ experiments: currentVal });
+          navigator.sendBeacon(
+            `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/papers/${paper.id}/notes`,
+            new Blob([data], { type: 'application/json' })
+          );
+        }
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [paper.id, paper.experiments]);
+
   // Keyboard shortcuts for notes
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
