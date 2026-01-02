@@ -551,7 +551,16 @@ export function PaperDetail({ paper, onClose, currentIndex, totalPapers, onNavig
                       Edit
                     </button>
                     <button
-                      onClick={() => setExperimentsMode('preview')}
+                      onClick={() => {
+                        // Save current value before switching to preview
+                        if (experimentsTextareaRef.current) {
+                          const newVal = experimentsTextareaRef.current.value;
+                          if (newVal !== experiments) {
+                            setExperiments(newVal);
+                          }
+                        }
+                        setExperimentsMode('preview');
+                      }}
                       className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
                         experimentsMode === 'preview' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                       }`}
@@ -565,8 +574,13 @@ export function PaperDetail({ paper, onClose, currentIndex, totalPapers, onNavig
                   <div className="relative">
                     <textarea
                       ref={experimentsTextareaRef}
-                      value={experiments}
-                      onChange={(e) => setExperiments(e.target.value)}
+                      defaultValue={experiments}
+                      onBlur={(e) => {
+                        const newVal = e.target.value;
+                        if (newVal !== experiments) {
+                          setExperiments(newVal);
+                        }
+                      }}
                       placeholder="What experiments does this paper suggest? What would you try next?"
                       className="w-full min-h-[150px] px-3 py-2.5 text-sm border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-300 resize-none overflow-hidden transition-all font-mono bg-amber-50/30"
                     />
