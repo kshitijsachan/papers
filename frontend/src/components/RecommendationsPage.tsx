@@ -228,7 +228,7 @@ function PaperTable({ papers, savedPapers, savingPapers, onSave, showCitations, 
 }
 
 export function RecommendationsPage() {
-  const { data, isLoading, error } = useRecommendations();
+  const { data, isLoading, isFetching, error } = useRecommendations();
   const { data: libraryPapers } = usePapers();
   const refreshRecommendations = useRefreshRecommendations();
   const addPaper = useAddPaper();
@@ -287,7 +287,8 @@ export function RecommendationsPage() {
     );
   };
 
-  if (isLoading) {
+  // Only show loading if we have no cached data at all
+  if (isLoading && !data) {
     return (
       <div className="flex items-center justify-center py-12">
         <p className="text-sm text-gray-500">Loading recommendations...</p>
@@ -295,7 +296,7 @@ export function RecommendationsPage() {
     );
   }
 
-  if (error) {
+  if (error && !data) {
     return (
       <div className="flex items-center justify-center py-12">
         <p className="text-sm text-red-500">Failed to load recommendations</p>
@@ -317,14 +318,24 @@ export function RecommendationsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <p className="text-xs text-gray-400">
-          Generated: {formatTimeAgo(data.generated_at)}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs text-gray-400">
+            Generated: {formatTimeAgo(data.generated_at)}
+          </p>
+          {isFetching && (
+            <span className="text-xs text-indigo-500 animate-pulse">Refreshing...</span>
+          )}
+        </div>
         <button
           onClick={refreshRecommendations}
-          className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-1.5"
+          disabled={isFetching}
+          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
+            isFetching
+              ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+              : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+          }`}
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
           Refresh

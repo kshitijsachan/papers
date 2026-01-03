@@ -14,7 +14,10 @@ export function useRecommendations() {
   return useQuery({
     queryKey: ['recommendations'],
     queryFn: fetchRecommendations,
-    staleTime: 60 * 60 * 1000, // 1 hour
+    staleTime: 5 * 60 * 1000, // Consider stale after 5 min, refetch in background
+    gcTime: 24 * 60 * 60 * 1000, // Keep in cache for 24 hours
+    refetchOnMount: true, // Refetch when component mounts (in background if have data)
+    refetchOnWindowFocus: false, // Don't refetch on tab focus
   });
 }
 
